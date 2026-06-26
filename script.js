@@ -51,7 +51,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cpf').addEventListener('input', (e) => e.target.value = mascaraCPF(e.target.value));
     document.getElementById('rg').addEventListener('input', (e) => e.target.value = mascaraRG(e.target.value));
     document.getElementById('telefone').addEventListener('input', (e) => e.target.value = mascaraTel(e.target.value));
-    document.getElementById('numero').addEventListener('input', (e) => e.target.value = e.target.value.replace(/\D/g, ""));
+    // Garante que o campo número aceite apenas dígitos
+    const inputNumero = document.getElementById('numero');
+    inputNumero.addEventListener('input', (e) => {
+        const valorLimpo = e.target.value.replace(/\D/g, "");
+        if (e.target.value !== valorLimpo) {
+            e.target.value = valorLimpo;
+        }
+    });
     document.getElementById('cep').addEventListener('input', (e) => {
         e.target.value = mascaraCEP(e.target.value);
         if (e.target.value.replace(/\D/g, "").length === 8) {
