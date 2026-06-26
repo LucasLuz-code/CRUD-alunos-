@@ -187,10 +187,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!validarComprimentoCPF(dados.cpf)) {
             document.getElementById('err-cpf').textContent = 'CPF deve ter 11 números.';
             erro = true;
+        } else {
+            const cpfDuplicado = alunos.some(a => a.cpf === dados.cpf && a.id !== dados.id);
+            if (cpfDuplicado) {
+                document.getElementById('err-cpf').textContent = 'Este CPF já está cadastrado.';
+                erro = true;
+            }
         }
+
         if (!validarComprimentoRG(dados.rg)) {
             document.getElementById('err-rg').textContent = 'RG deve ter 9 caracteres.';
             erro = true;
+        } else {
+            const rgDuplicado = alunos.some(a => a.rg === dados.rg && a.id !== dados.id);
+            if (rgDuplicado) {
+                document.getElementById('err-rg').textContent = 'Este RG já está cadastrado.';
+                erro = true;
+            }
         }
         if (!validarComprimentoTel(dados.telefone)) {
             document.getElementById('err-tel').textContent = 'Telefone deve ter 11 números (com DDD).';
