@@ -41,9 +41,57 @@ document.addEventListener('DOMContentLoaded', () => {
         return v;
     };
 
+    const mascaraCEP = (v) => {
+        v = v.replace(/\D/g, "");
+        if (v.length > 8) v = v.slice(0, 8);
+        v = v.replace(/(\d{5})(\d)/, "$1-$2");
+        return v;
+    };
+
     document.getElementById('cpf').addEventListener('input', (e) => e.target.value = mascaraCPF(e.target.value));
     document.getElementById('rg').addEventListener('input', (e) => e.target.value = mascaraRG(e.target.value));
     document.getElementById('telefone').addEventListener('input', (e) => e.target.value = mascaraTel(e.target.value));
+    document.getElementById('cep').addEventListener('input', (e) => {
+        e.target.value = mascaraCEP(e.target.value);
+        if (e.target.value.replace(/\D/g, "").length === 8) {
+            buscarCEP(e.target.value);
+        }
+    });
+
+    // --- BUSCA DE CEP (ViaCEP) ---
+    const buscarCEP = async (cep) => {
+        const cepNumerico = cep.replace(/\D/g, "");
+        const loading = document.getElementById('cep-loading');
+        const errCep = document.getElementById('err-cep');
+        errCep.textContent = '';
+        loading.style.display = 'inline';
+
+        try {
+            const resp = await fetch(`https://viacep.com.br/ws/${cepNumerico}/json/`);
+            const dados = await resp.json();
+
+            if (dados.erro) {
+                errCep.textContent = 'CEP não encontrado.';
+                limparCamposEndereco();
+            } else {
+                document.getElementById('logradouro').value = dados.logradouro || '';
+                document.getElementById('bairro').value = dados.bairro || '';
+                document.getElementById('cidade').value = dados.localidade || '';
+                document.getElementById('uf').value = dados.uf || '';
+                document.getElementById('numero').focus();
+            }
+        } catch {
+            errCep.textContent = 'Erro ao buscar CEP. Verifique sua conexão.';
+        } finally {
+            loading.style.display = 'none';
+        }
+    };
+
+    const limparCamposEndereco = () => {
+        ['logradouro', 'bairro', 'cidade', 'uf', 'numero', 'complemento'].forEach(id => {
+            document.getElementById(id).value = '';
+        });
+    };
 
     // --- VALIDAÇÕES ---
     const validarNome = (nome) => !/\d/.test(nome);
@@ -52,11 +100,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const dataNasc = new Date(data);
         return dataNasc <= hoje;
     };
-    
-    // Novas validações de comprimento
+
     const validarComprimentoCPF = (v) => v.replace(/\D/g, "").length === 11;
     const validarComprimentoRG = (v) => v.replace(/[^0-9X]/g, "").length === 9;
     const validarComprimentoTel = (v) => v.replace(/\D/g, "").length === 11;
+    const validarComprimentoCEP = (v) => v.replace(/\D/g, "").length === 8;
 
     // --- CRUD ---
     const renderizarTabela = () => {
@@ -84,19 +132,21 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const exibirCardSucesso = (aluno) => {
+        const enderecoFormatado = `${aluno.logradouro}, ${aluno.numero}${aluno.complemento ? ' – ' + aluno.complemento : ''}, ${aluno.bairro} – ${aluno.cidade}/${aluno.uf}, CEP ${aluno.cep}`;
         detalhesSucesso.innerHTML = `
             <p><strong>RM:</strong> ${aluno.rm}</p>
             <p><strong>Nome:</strong> ${aluno.nome}</p>
             <p><strong>CPF:</strong> ${aluno.cpf}</p>
             <p><strong>Curso:</strong> ${aluno.curso}</p>
             <p><strong>Turma:</strong> ${aluno.turma}</p>
+            <p><strong>Endereço:</strong> ${enderecoFormatado}</p>
         `;
         modalSucesso.style.display = 'block';
     };
 
     formAluno.onsubmit = (e) => {
         e.preventDefault();
-        
+
         const dados = {
             id: editandoId || Date.now().toString(),
             nome: document.getElementById('nome').value,
@@ -108,11 +158,20 @@ document.addEventListener('DOMContentLoaded', () => {
             turma: document.getElementById('turma').value,
             curso: document.getElementById('curso').value,
             email: document.getElementById('email').value,
+            // Endereço
+            cep: document.getElementById('cep').value,
+            logradouro: document.getElementById('logradouro').value,
+            numero: document.getElementById('numero').value,
+            complemento: document.getElementById('complemento').value,
+            bairro: document.getElementById('bairro').value,
+            cidade: document.getElementById('cidade').value,
+            uf: document.getElementById('uf').value.toUpperCase(),
         };
 
         document.querySelectorAll('.error-msg').forEach(el => el.textContent = '');
 
         let erro = false;
+
         if (!validarNome(dados.nome)) {
             document.getElementById('err-nome').textContent = 'Nome não pode conter números.';
             erro = true;
@@ -125,8 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('err-data').textContent = 'Data inválida (deve ser hoje ou anterior).';
             erro = true;
         }
-        
-        // Validações de comprimento
         if (!validarComprimentoCPF(dados.cpf)) {
             document.getElementById('err-cpf').textContent = 'CPF deve ter 11 números.';
             erro = true;
@@ -137,6 +194,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!validarComprimentoTel(dados.telefone)) {
             document.getElementById('err-tel').textContent = 'Telefone deve ter 11 números (com DDD).';
+            erro = true;
+        }
+
+        // Validações de endereço
+        if (!validarComprimentoCEP(dados.cep)) {
+            document.getElementById('err-cep').textContent = 'CEP deve ter 8 números.';
+            erro = true;
+        }
+        if (!dados.logradouro.trim()) {
+            document.getElementById('err-logradouro').textContent = 'Informe o logradouro.';
+            erro = true;
+        }
+        if (!dados.numero.trim()) {
+            document.getElementById('err-numero').textContent = 'Informe o número.';
+            erro = true;
+        }
+        if (!dados.bairro.trim()) {
+            document.getElementById('err-bairro').textContent = 'Informe o bairro.';
+            erro = true;
+        }
+        if (!dados.cidade.trim()) {
+            document.getElementById('err-cidade').textContent = 'Informe a cidade.';
+            erro = true;
+        }
+        if (dados.uf.length !== 2) {
+            document.getElementById('err-uf').textContent = 'UF deve ter 2 letras.';
             erro = true;
         }
 
@@ -176,6 +259,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('turma').value = aluno.turma;
             document.getElementById('curso').value = aluno.curso;
             document.getElementById('email').value = aluno.email;
+            // Endereço
+            document.getElementById('cep').value = aluno.cep || '';
+            document.getElementById('logradouro').value = aluno.logradouro || '';
+            document.getElementById('numero').value = aluno.numero || '';
+            document.getElementById('complemento').value = aluno.complemento || '';
+            document.getElementById('bairro').value = aluno.bairro || '';
+            document.getElementById('cidade').value = aluno.cidade || '';
+            document.getElementById('uf').value = aluno.uf || '';
             modal.style.display = 'block';
         }
     };
@@ -203,11 +294,11 @@ document.addEventListener('DOMContentLoaded', () => {
     btnNovoAluno.onclick = () => modal.style.display = 'block';
     btnCancelar.onclick = fecharModal;
     spanClose.onclick = fecharModal;
-    
+
     spanCloseSucesso.onclick = fecharModalSucesso;
     btnOkSucesso.onclick = fecharModalSucesso;
 
-    window.onclick = (e) => { 
+    window.onclick = (e) => {
         if (e.target == modal) fecharModal();
         if (e.target == modalSucesso) fecharModalSucesso();
     };
