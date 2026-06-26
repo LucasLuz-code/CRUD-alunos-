@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cpf').addEventListener('input', (e) => e.target.value = mascaraCPF(e.target.value));
     document.getElementById('rg').addEventListener('input', (e) => e.target.value = mascaraRG(e.target.value));
     document.getElementById('telefone').addEventListener('input', (e) => e.target.value = mascaraTel(e.target.value));
+    document.getElementById('numero').addEventListener('input', (e) => e.target.value = e.target.value.replace(/\D/g, ""));
     document.getElementById('cep').addEventListener('input', (e) => {
         e.target.value = mascaraCEP(e.target.value);
         if (e.target.value.replace(/\D/g, "").length === 8) {
